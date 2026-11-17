@@ -23,14 +23,14 @@ Home Assistant Container/Core users can use the [standalone container](#developm
 
 ## Install the app
 
-**This repository is private. Use local installation:** Home Assistant's app store
-cannot clone this private repository through the shortcut buttons.
+**Add the repository first**, then open Pocket TTS to install it:
 
-1. Download or clone this repository using your GitHub account. Copy the entire
-   `pocket_tts` folder into `/addons/pocket_tts` on your Home Assistant host, for
-   example through the Samba or SSH app.
-2. Open **Settings > Apps > App store** (called **Add-ons** in older releases),
-   reload/check for updates, and install **Pocket TTS** under **Local apps**.
+[![Add app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
+[![Open Pocket TTS in Home Assistant](https://my.home-assistant.io/badges/supervisor_addon.svg)](https://my.home-assistant.io/redirect/supervisor_addon/?addon=50e8e570_pocket_tts&repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
+
+1. Click **Add app repository**, select your Home Assistant instance, and confirm.
+2. Click **Open Pocket TTS**, then **Install**. Alternatively, find Pocket TTS in
+   **Settings > Apps > App store** (called **Add-ons** in older releases).
 3. Start the app and wait for **`Model ready`** in its log.
 4. Open **Settings > Devices & services** and confirm the discovered **Pocket TTS**
    Wyoming integration.
@@ -42,15 +42,8 @@ using Docker Hub, GitHub, and PyPI. First startup downloads approximately **252 
 of models from Hugging Face: the speech model (~231 MB) and Hebrew pronunciation
 model (~21 MB). Later starts reuse the persistent cache.
 
-### Repository shortcuts
-
-These official shortcuts are for repository-based installation **if the repository
-is made public in the future**. They do not work for the current private repository
-or a locally installed copy. Add the repository first, then open Pocket TTS and
-choose **Install**; both actions require your confirmation.
-
-[![Add app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
-[![Open Pocket TTS in Home Assistant](https://my.home-assistant.io/badges/supervisor_addon.svg)](https://my.home-assistant.io/redirect/supervisor_addon/?addon=50e8e570_pocket_tts&repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
+The official shortcuts open Home Assistant's confirmation or app page; they do
+not install anything without your approval.
 
 For manual repository-based installation, the app store's **Repositories** dialog
 uses this exact URL:
@@ -60,7 +53,11 @@ https://github.com/meirlo/ha-pocket-tts-he.git
 ```
 
 The app shortcut matches that repository URL. If you previously added the URL
-without `.git`, open Pocket TTS from the app store instead.
+without `.git`, or installed a local copy, open Pocket TTS from the app store instead.
+
+For local installation, copy the entire `pocket_tts` folder into
+`/addons/pocket_tts` on your Home Assistant host, reload the app store, and
+install it under **Local apps**.
 
 ## Choose a voice
 
@@ -78,8 +75,8 @@ entity and a media player for announcements. The app does not need sound hardwar
 
 ## Useful settings and troubleshooting
 
-Keep the defaults for your first start. After the models have downloaded, set
-**`offline: true`** to prevent further model downloads. Cached models are excluded
+Keep the defaults: **after the first download, models load without network access
+automatically**. Only missing model files are downloaded. Cached models are excluded
 from backups, so a restore needs another download or separately supplied model files.
 See [app documentation](pocket_tts/DOCS.md) for configuration, offline use, backups,
 local models, and troubleshooting.
@@ -100,8 +97,8 @@ entry before confirming discovery, to avoid duplicate TTS entities.
 never forward its port to the internet.
 
 **Upgrading from 0.1.0:** the default model now includes the Hebrew adapter.
-An old English-only cache is not enough for offline startup; start once with
-`offline: false` to cache both new files, or supply local models.
+An old English-only cache is not enough; the app downloads the new files on its
+next start, or you can supply local models.
 
 ## Development / standalone
 
@@ -162,6 +159,24 @@ The Debian Bookworm image supplies glibc; Alpine/musl and 32-bit ARM/x86
 are not supported. Wheel availability is not a hardware performance
 guarantee. CI builds both container architectures; a real Home Assistant
 installation remains the final deployment check.
+
+## Credits and citations
+
+This app builds on the work of these projects and their contributors:
+
+| Project | Contribution |
+| --- | --- |
+| [Kyutai Pocket TTS](https://github.com/kyutai-labs/pocket-tts) | Original speech synthesis model, by Kyutai. |
+| [Pocket TTS ONNX](https://github.com/thewh1teagle/pocket-tts-onnx) | CPU ONNX implementation, model export, and Hebrew adapter, by thewh1teagle. |
+| [ReNikud](https://huggingface.co/renikud/renikud) and [renikud-onnx](https://github.com/thewh1teagle/renikud) | Hebrew pronunciation model by Maxim Melichov, Yakov Kolani, and Morris Alper; ONNX tooling by thewh1teagle. |
+| [heb-tts-normalizer](https://github.com/thewh1teagle/heb-tts-normalizer) | Hebrew number, date, and time normalization, by thewh1teagle and contributors. |
+| [Phonemizer](https://github.com/bootphon/phonemizer), [eSpeak NG](https://github.com/espeak-ng/espeak-ng), and [espeakng-loader](https://github.com/thewh1teagle/espeakng-loader) | Phoneme conversion and mixed-language pronunciation. |
+| [Wyoming](https://github.com/OHF-voice/wyoming) | Speech-service protocol and Python library, by Michael Hansen and contributors. |
+| [Home Assistant](https://www.home-assistant.io/) and [My Home Assistant](https://my.home-assistant.io/) | Voice-assistant integration, app management, discovery, and installation shortcuts. |
+
+See [full third-party citations and licenses](pocket_tts/NOTICE.md) for the pinned
+model revisions, research reference, all locked Python dependencies, development
+tools, and container/CI projects.
 
 ## License
 

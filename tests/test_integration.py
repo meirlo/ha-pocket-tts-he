@@ -1,5 +1,6 @@
 import asyncio
 import os
+import socket
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +14,6 @@ from wyoming_pocket_tts.settings import Settings
 
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("POCKET_TTS_SMOKE") != "1", reason="Opt-in model download")
-@pytest.mark.parametrize("offline", [False, True])
 @pytest.mark.parametrize(
     "voice,text",
     [
@@ -22,8 +22,22 @@ from wyoming_pocket_tts.settings import Settings
         ("liat", "\u05e9\u05dc\u05d5\u05dd Google. \u05d4\u05e9\u05e2\u05d4 12:30."),
     ],
 )
-async def test_real_model_over_wyoming(offline: bool, voice: str, text: str) -> None:
-    engine = await asyncio.to_thread(load_engine, Settings(offline=offline), Path(".cache"))
+async def test_real_model_over_wyoming(
+    voice: str, text: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = await asyncio.to_thread(load_engine, Settings(), Path(".cache"))
+    del engine
+    attempts = []
+
+    def reject_connection(*args: object, **kwargs: object) -> None:
+        attempts.append((args, kwargs))
+        raise AssertionError("Cached startup must not attempt a network connection")
+
+    with monkeypatch.context() as offline:
+        offline.setattr(socket.socket, "connect", reject_connection)
+        offline.setattr(socket.socket, "connect_ex", reject_connection)
+        engine = await asyncio.to_thread(load_engine, Settings(), Path(".cache"))
+    assert not attempts
     assert "alba" in engine.voices()
     assert engine.voice_language("omer") == "he"
     assert engine.voice_language("liat") == "he"

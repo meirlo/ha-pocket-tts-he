@@ -1,6 +1,9 @@
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -8,7 +11,6 @@ class Settings:
     voice: str = "alba"
     model_path: str = ""
     renikud_model_path: str = ""
-    offline: bool = False
     num_threads: int = 2
     max_text_length: int = 4000
     log_level: str = "info"
@@ -20,8 +22,6 @@ class Settings:
             raise ValueError("model_path must be a string")
         if not isinstance(self.renikud_model_path, str):
             raise ValueError("renikud_model_path must be a string")
-        if not isinstance(self.offline, bool):
-            raise ValueError("offline must be a boolean")
         for name, maximum in (("num_threads", 32), ("max_text_length", 16000)):
             value = getattr(self, name)
             if type(value) is not int or not 1 <= value <= maximum:
@@ -37,4 +37,11 @@ def load_settings(path: Path | None) -> Settings:
         options = json.load(options_file)
     if not isinstance(options, dict):
         raise ValueError("Options must be a JSON object")
+    if "offline" in options:
+        if not isinstance(options.pop("offline"), bool):
+            raise ValueError("offline must be a boolean")
+        _LOGGER.warning(
+            "The offline option is obsolete and ignored; cached models always load without "
+            "network access, and missing models download automatically"
+        )
     return Settings(**options)

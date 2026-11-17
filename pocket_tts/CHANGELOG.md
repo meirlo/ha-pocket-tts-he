@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Always load cached models without network access; download only missing pinned files.
+- Remove the `offline` switch; accept legacy boolean options with a migration warning.
+- Move local TTS and Renikud model paths under unused optional configuration.
+- Add complete project citations and public repository installation shortcuts.
+
 ## 0.3.0
 
 - Publish Wyoming discovery through Supervisor once the TTS listener is ready.

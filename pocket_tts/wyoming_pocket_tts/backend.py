@@ -72,8 +72,31 @@ class PocketEngine:
             yield from self.model.stream(text, voice=voice)
 
 
-def load_engine(settings: Settings, data_dir: Path) -> Engine:
+def _cached_model(repo_id: str, filename: str, revision: str, cache_dir: Path) -> Path:
     from huggingface_hub import hf_hub_download
+    from huggingface_hub.errors import LocalEntryNotFoundError
+
+    try:
+        path = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            revision=revision,
+            cache_dir=cache_dir,
+            local_files_only=True,
+        )
+    except LocalEntryNotFoundError:
+        _LOGGER.info("Model %s is not cached; downloading revision %s", filename, revision)
+        path = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            revision=revision,
+            cache_dir=cache_dir,
+            local_files_only=False,
+        )
+    return Path(path)
+
+
+def load_engine(settings: Settings, data_dir: Path) -> Engine:
     from pocket_tts_onnx import PocketTTS
 
     if settings.model_path:
@@ -86,14 +109,8 @@ def load_engine(settings: Settings, data_dir: Path) -> Engine:
             MODEL_FILENAME,
             MODEL_REVISION,
         )
-        path = Path(
-            hf_hub_download(
-                repo_id=MODEL_REPO,
-                filename=MODEL_FILENAME,
-                revision=MODEL_REVISION,
-                cache_dir=data_dir / "huggingface",
-                local_files_only=settings.offline,
-            )
+        path = _cached_model(
+            MODEL_REPO, MODEL_FILENAME, MODEL_REVISION, data_dir / "huggingface"
         )
     model = PocketTTS(path, providers=["CPUExecutionProvider"], num_threads=settings.num_threads)
     if model.config.language not in ("en", "english"):
@@ -117,14 +134,8 @@ def load_engine(settings: Settings, data_dir: Path) -> Engine:
             if not renikud_path.is_file():
                 raise FileNotFoundError(f"Renikud model does not exist: {renikud_path}")
         else:
-            renikud_path = Path(
-                hf_hub_download(
-                    repo_id=RENIKUD_REPO,
-                    filename=RENIKUD_FILENAME,
-                    revision=RENIKUD_REVISION,
-                    cache_dir=data_dir / "huggingface",
-                    local_files_only=settings.offline,
-                )
+            renikud_path = _cached_model(
+                RENIKUD_REPO, RENIKUD_FILENAME, RENIKUD_REVISION, data_dir / "huggingface"
             )
         from pocket_tts_onnx import phonemize_mixed
 

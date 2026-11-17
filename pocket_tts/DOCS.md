@@ -2,10 +2,10 @@
 
 For installation and the official Home Assistant shortcut buttons, see the
 [repository README](https://github.com/meirlo/ha-pocket-tts-he#install-the-app).
-This repository is private: copy its `pocket_tts` folder into `/addons/pocket_tts`,
-reload the app store, install **Pocket TTS** under **Local apps**, and start it.
-Repository shortcut installation requires a public repository and does not apply
-to the current private repository.
+Add `https://github.com/meirlo/ha-pocket-tts-he.git` to the app store's
+**Repositories** dialog, install **Pocket TTS**, and start it. For local installation,
+copy its `pocket_tts` folder into `/addons/pocket_tts`, reload the app store,
+and install **Pocket TTS** under **Local apps**.
 
 After the app starts, confirm the discovered **Pocket TTS** Wyoming integration
 under **Settings > Devices & services**. Then choose Pocket TTS in your English
@@ -19,7 +19,7 @@ LAN IP and mapped port remains supported.
 
 If an existing manual integration already works, ignore a new discovery card
 or remove the manual entry before confirming the discovered one to avoid
-duplicate TTS entities. Updating to 0.3.0 requires rebuilding/restarting the app
+duplicate TTS entities. Updating to 0.4.0 requires rebuilding/restarting the app
 with its updated `config.yaml`.
 
 ## Options
@@ -27,9 +27,6 @@ with its updated `config.yaml`.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `voice` | `alba` | Default embedded voice. Home Assistant's per-request voice selection overrides it. |
-| `model_path` | empty | Download/cache the pinned English + Hebrew IPA model. Or set an absolute path to a local compatible single-file ONNX export, e.g. `/share/pocket-tts/model.onnx`. An English-only export remains supported but exposes no Hebrew voices. |
-| `renikud_model_path` | empty | Download/cache the pinned Hebrew G2P model. Or use a local Renikud ONNX file, e.g. `/share/pocket-tts/renikud.onnx`. Only needed for a TTS model with Hebrew voices. |
-| `offline` | `false` | With `true`, only load an already-cached download or local model; never attempt a Hub download. |
 | `num_threads` | `2` | CPU inference threads, from 1 to 32. More threads are not always faster. |
 | `max_text_length` | `4000` | Maximum characters per request, from 1 to 16000. Longer requests are rejected with a Wyoming error. |
 | `log_level` | `info` | `debug`, `info`, `warning` or `error`. |
@@ -51,13 +48,27 @@ Example app options:
 
 ```yaml
 voice: alba
-model_path: ""
-renikud_model_path: ""
-offline: false
 num_threads: 2
 max_text_length: 4000
 log_level: info
 ```
+
+### Unused optional configuration
+
+`model_path` and `renikud_model_path` are optional advanced overrides, hidden
+under **Show unused optional configuration** until set. Leave them unset for
+automatic downloads and cache-only loading after the first download.
+
+| Option | Meaning |
+| --- | --- |
+| `model_path` | Absolute path to a compatible local single-file TTS ONNX export, e.g. `/share/pocket-tts/model.onnx`. An English-only export exposes no Hebrew voices. |
+| `renikud_model_path` | Absolute path to a local Renikud ONNX file, e.g. `/share/pocket-tts/renikud.onnx`. Only used when the TTS model includes Hebrew voices. |
+
+Upgraded installations may still have empty path values saved. Remove those
+empty keys in the configuration's YAML editor to return them to the unused
+optional section. Keep any paths you deliberately configured.
+
+## Speech and local models
 
 English and Hebrew plain-text synthesis are exposed. Hebrew text is normalized
 (including numbers, dates and times), and unvocalized Hebrew is converted to
@@ -78,14 +89,18 @@ An inference failure ends with a Wyoming error, not a successful audio-stop.
 
 ## Offline use and backups
 
-The downloaded TTS and Renikud models are cached in `/data/huggingface`, surviving restarts
-and upgrades. After a successful first online startup, set `offline: true`
-to require cache-only loading. If either required model is missing, startup fails
-explicitly; switch offline off to download again.
+The downloaded TTS and Renikud models are cached in `/data/huggingface`, surviving
+restarts and upgrades. Every startup first checks the pinned files locally,
+without contacting Hugging Face. Only missing files are downloaded; once both
+are cached, startup and speech work without internet access. There is no
+`offline` switch. Older options files containing a boolean `offline` value are
+accepted with a warning; that value no longer changes model loading.
+Remove an old `offline` key from saved app options to clear Supervisor's
+unknown-option warning after upgrading.
 
 Downloaded cache files are excluded from Home Assistant backups because
 they can be downloaded again. Restoring a backup therefore requires
-internet access with `offline: false`, or a separately provided local model.
+internet access to download missing files, or separately provided local models.
 For permanently disconnected systems, copy the pinned
 `pocket-tts-english-ipa.onnx` to `/share/pocket-tts/model.onnx` and Renikud's
 `model.onnx` to `/share/pocket-tts/renikud.onnx`. Set `model_path` and
@@ -94,8 +109,8 @@ your custom model separately. Uploaded/custom models are never deleted
 or replaced by this app.
 
 Upgrading from 0.1.0 requires downloading the IPA model and Renikud, even if
-the previous English-only model was cached. Temporarily use `offline: false`,
-or provide both files locally. A local English-only model still works offline
+the previous English-only model was cached. Missing files download automatically,
+or you can provide both files locally. A local English-only model still works offline
 without Renikud, but cannot provide Hebrew voices.
 
 The first download needs access to Hugging Face and its download/CDN hosts.
@@ -104,15 +119,16 @@ are fetched. No API key is required for the pinned public model.
 
 ## Troubleshooting
 
-- **App not listed:** ensure `config.yaml`, `Dockerfile`, `requirements.txt`
-  and `wyoming_pocket_tts` are directly inside `/addons/pocket_tts`, then reload
-  the app store. Only 64-bit amd64/aarch64 are supported. Private repositories
-  cannot be installed through the store's **Repositories** dialog.
+- **App not listed:** check that the repository above is added and reload the
+  app store. Only 64-bit amd64/aarch64 are supported. For local installation,
+  ensure `config.yaml`, `Dockerfile`, `requirements.txt` and `wyoming_pocket_tts`
+  are directly inside `/addons/pocket_tts`.
 - **Install/build failed:** inspect the build log for GitHub/PyPI/Docker Hub
   connectivity errors, storage shortages or incompatible wheels. The image
   uses Debian and Python 3.13, not the Home Assistant Alpine base.
 - **Download/startup failed:** inspect the log, check free disk/RAM and
-  connectivity, and verify `offline` and `model_path`. The TCP socket opens
+  connectivity when files are missing, and verify any configured local model paths.
+  Download failures stop startup with an error; the TCP socket opens
   only after the model has loaded.
 - **Port already in use:** Piper may use the same host port. Change Pocket
   TTS's host port in Network settings, then use that port in the integration.
@@ -134,5 +150,7 @@ Never expose this unauthenticated service outside your trusted network.
 ## Attribution
 
 Pocket TTS ONNX and its model are by thewh1teagle, based on Kyutai's Pocket
-TTS, and are used under CC BY 4.0. See [NOTICE](NOTICE.md) for source links,
-revisions, license details and distribution obligations.
+TTS, and are used under CC BY 4.0. ReNikud provides Hebrew pronunciation;
+Wyoming connects the app to Home Assistant. See [NOTICE](NOTICE.md) for complete
+project citations, model authors and revisions, dependency licenses, and
+distribution obligations.
