@@ -23,6 +23,7 @@ def test_options_file(tmp_path: Path) -> None:
         {"offline": "false"},
         {"voice": ""},
         {"model_path": 123},
+        {"renikud_model_path": 123},
         {"log_level": "trace"},
     ],
 )
@@ -55,7 +56,7 @@ def test_model_cache_revision_and_offline_mode(
     def load(*args: object, **kwargs: object) -> FakeEngine:
         load_calls.append((args, kwargs))
         engine = FakeEngine()
-        engine.config = SimpleNamespace(language="english", lora=None)
+        engine.config = SimpleNamespace(language="english", lora=None, voice_languages=None)
         return engine
 
     monkeypatch.setattr(huggingface_hub, "hf_hub_download", download)
@@ -82,9 +83,18 @@ def test_model_cache_revision_and_offline_mode(
         load_engine(Settings(voice="missing"), tmp_path)
 
 
-@pytest.mark.parametrize("language,lora", [("he", None), ("english", {})])
+@pytest.mark.parametrize(
+    "language,lora,voice_languages,steps",
+    [
+        ("he", None, None, 1),
+        ("english", None, {"cosette": "he", "alba": "en"}, 2),
+        ("english", {}, {"cosette": "he", "alba": "en"}, 1),
+        ("english", {}, {"cosette": "fr", "alba": "en"}, 2),
+    ],
+)
 def test_incompatible_local_model_is_rejected(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, language: str, lora: object
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, language: str, lora: object,
+    voice_languages: dict[str, str] | None, steps: int
 ) -> None:
     import pocket_tts_onnx
     from test_service import FakeEngine
@@ -94,9 +104,98 @@ def test_incompatible_local_model_is_rejected(
 
     def load(*args: object, **kwargs: object) -> FakeEngine:
         engine = FakeEngine()
-        engine.config = SimpleNamespace(language=language, lora=lora)
+        engine.config = SimpleNamespace(
+            language=language, lora=lora, voice_languages=voice_languages, max_decode_steps=steps
+        )
         return engine
 
     monkeypatch.setattr(pocket_tts_onnx, "PocketTTS", load)
-    with pytest.raises(ValueError, match="without phoneme adapters"):
+    with pytest.raises(ValueError):
         load_engine(Settings(model_path=str(local_model)), tmp_path)
+
+
+def test_hebrew_models_are_pinned_cached_and_support_local_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import huggingface_hub
+    import pocket_tts_onnx
+    from test_service import BilingualEngine
+    from wyoming_pocket_tts.backend import RENIKUD_FILENAME, RENIKUD_REPO, RENIKUD_REVISION
+
+    model = BilingualEngine()
+    model.config = SimpleNamespace(
+        language="english", lora={}, max_decode_steps=2,
+        voice_languages={"alba": "en", "cosette": "en", "liat": "he", "omer": "he"},
+    )
+    downloads = []
+    preprocessed = []
+
+    def download(**kwargs: object) -> str:
+        downloads.append(kwargs)
+        return str(tmp_path / "cached.onnx")
+
+    def phonemize(text: str, *, model: Path) -> str:
+        preprocessed.append((text, model))
+        return "ipa"
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", download)
+    monkeypatch.setattr(pocket_tts_onnx, "PocketTTS", lambda *args, **kwargs: model)
+    monkeypatch.setattr(pocket_tts_onnx, "phonemize_mixed", phonemize)
+    engine = load_engine(Settings(offline=True), tmp_path)
+    assert engine.voice_language("omer") == "he"
+    assert downloads[1] == {
+        "repo_id": RENIKUD_REPO, "filename": RENIKUD_FILENAME, "revision": RENIKUD_REVISION,
+        "cache_dir": tmp_path / "huggingface", "local_files_only": True,
+    }
+    assert preprocessed == [("\u05e9\u05dc\u05d5\u05dd", tmp_path / "cached.onnx")]
+    local_model = tmp_path / "custom.onnx"
+    local_model.touch()
+    renikud = tmp_path / "renikud.onnx"
+    renikud.touch()
+    load_engine(
+        Settings(model_path=str(local_model), renikud_model_path=str(renikud), offline=True),
+        tmp_path,
+    )
+    assert len(downloads) == 2
+    assert preprocessed[-1][1] == renikud
+    with pytest.raises(FileNotFoundError, match="Renikud"):
+        load_engine(
+            Settings(model_path=str(local_model), renikud_model_path=str(tmp_path / "missing")),
+            tmp_path,
+        )
+
+
+def test_hebrew_preprocessing_and_adapter_do_not_change_english(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import numpy as np
+    import pocket_tts_onnx
+    from test_service import BilingualEngine
+    from wyoming_pocket_tts.backend import PocketEngine
+
+    calls = []
+    preprocessed = []
+
+    class Model(BilingualEngine):
+        def stream(self, text: str, voice: str, **kwargs: object):
+            calls.append((text, voice, kwargs))
+            yield np.ones(10, dtype=np.float32)
+
+    def phonemize(text: str, *, model: Path) -> str:
+        preprocessed.append((text, model))
+        return "ipa"
+
+    monkeypatch.setattr(pocket_tts_onnx, "phonemize_mixed", phonemize)
+    engine = PocketEngine(Model(), {"omer": "he", "alba": "en"}, Path("renikud.onnx"))
+    list(engine.stream("\u05e9\u05dc\u05d5\u05dd Google", voice="omer"))
+    list(engine.stream("Hello", voice="alba"))
+    assert preprocessed == [("\u05e9\u05dc\u05d5\u05dd Google", Path("renikud.onnx"))]
+    assert calls == [
+        ("ipa", "omer", {"phonemes": True, "decode_steps": 2}),
+        ("Hello", "alba", {}),
+    ]
+
+    monkeypatch.setattr(pocket_tts_onnx, "phonemize_mixed", lambda *args, **kwargs: "")
+    with pytest.raises(ValueError, match="no speakable text"):
+        list(engine.stream("text", voice="omer"))
+    assert len(calls) == 2

@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 from wyoming.server import AsyncServer
 
 from .backend import load_engine
+from .discovery import publish_discovery
 from .server import PocketEventHandler, make_info
 from .settings import load_settings
 
@@ -30,6 +32,10 @@ async def serve(options: Path | None, data_dir: Path, uri: str) -> None:
             uri,
             ", ".join(engine.voices()),
         )
+        token = os.environ.get("SUPERVISOR_TOKEN")
+        discovery_task = (
+            asyncio.create_task(publish_discovery(token, uri)) if token else None
+        )
         try:
             await server.run(
                 partial(
@@ -43,6 +49,9 @@ async def serve(options: Path | None, data_dir: Path, uri: str) -> None:
                 )
             )
         finally:
+            if discovery_task is not None:
+                discovery_task.cancel()
+                await asyncio.gather(discovery_task, return_exceptions=True)
             await server.stop()
             # Wyoming closes sockets on stop but does not await inference cleanup.
             results = await asyncio.gather(*list(handler_tasks), return_exceptions=True)

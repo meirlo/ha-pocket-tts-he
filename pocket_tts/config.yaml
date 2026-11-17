@@ -1,7 +1,7 @@
 name: Pocket TTS
-version: "0.1.0"
+version: "0.3.0"
 slug: pocket_tts
-description: Local English text-to-speech with Pocket TTS ONNX over Wyoming
+description: Local English and Hebrew text-to-speech with Pocket TTS ONNX over Wyoming
 arch:
   - amd64
   - aarch64
@@ -9,6 +9,8 @@ startup: application
 boot: auto
 stage: experimental
 init: true
+discovery:
+  - wyoming
 timeout: 300
 ports:
   10200/tcp: 10200
@@ -23,6 +25,7 @@ backup_exclude:
 options:
   voice: alba
   model_path: ""
+  renikud_model_path: ""
   offline: false
   num_threads: 2
   max_text_length: 4000
@@ -30,6 +33,7 @@ options:
 schema:
   voice: str
   model_path: str
+  renikud_model_path: str
   offline: bool
   num_threads: int(1,32)
   max_text_length: int(1,16000)

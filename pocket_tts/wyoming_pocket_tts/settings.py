@@ -7,6 +7,7 @@ from pathlib import Path
 class Settings:
     voice: str = "alba"
     model_path: str = ""
+    renikud_model_path: str = ""
     offline: bool = False
     num_threads: int = 2
     max_text_length: int = 4000
@@ -17,6 +18,8 @@ class Settings:
             raise ValueError("voice must be a non-empty built-in voice name")
         if not isinstance(self.model_path, str):
             raise ValueError("model_path must be a string")
+        if not isinstance(self.renikud_model_path, str):
+            raise ValueError("renikud_model_path must be a string")
         if not isinstance(self.offline, bool):
             raise ValueError("offline must be a boolean")
         for name, maximum in (("num_threads", 32), ("max_text_length", 16000)):
