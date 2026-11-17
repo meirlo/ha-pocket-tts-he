@@ -1,0 +1,53 @@
+name: Validate Pocket TTS
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements-dev.txt
+      - run: pip check
+      - run: python -m pytest -q
+      - run: python -m ruff check .
+      - run: python -m mypy
+      - name: Real-model Wyoming smoke test
+        env:
+          POCKET_TTS_SMOKE: "1"
+          HF_HUB_DISABLE_TELEMETRY: "1"
+        run: python -m pytest -q tests/test_integration.py
+  containers:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+          - platform: linux/arm64
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: pocket_tts
+          platforms: ${{ matrix.platform }}
+          build-args: BUILD_ARCH=${{ matrix.arch }}
+          push: false
+          load: true
+          tags: pocket-tts:test
+      - name: Verify runtime import on target architecture
+        run: >-
+          docker run --rm --platform ${{ matrix.platform }}
+          --entrypoint python pocket-tts:test
+          -c "from pocket_tts_onnx import PocketTTS; from wyoming_pocket_tts.server import PocketEventHandler"

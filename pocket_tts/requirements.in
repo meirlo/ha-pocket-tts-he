@@ -1,0 +1,11 @@
+# Last revision before the unlicensed conikud-onnx dependency was introduced.
+pocket-tts-onnx @ https://github.com/thewh1teagle/pocket-tts-onnx/archive/3eaed376097da1ec7ac528309beb683e7ae43c0c.tar.gz
+wyoming==1.11.0
+huggingface-hub==2.4.0
+numpy==2.5.5
+onnxruntime==1.32.0
+sentencepiece==0.2.3
+espeakng-loader==0.2.4
+phonemizer==3.6.0
+renikud-onnx==0.1.1
+heb-tts-normalizer==0.2.0

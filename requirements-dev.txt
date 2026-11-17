@@ -1,0 +1,6 @@
+-r pocket_tts/requirements.txt
+pytest>=8.4,<10
+pytest-asyncio>=1.2,<2
+ruff>=0.14,<1
+mypy>=1.18,<2
+PyYAML>=6,<7
