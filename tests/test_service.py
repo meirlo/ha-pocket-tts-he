@@ -32,6 +32,9 @@ class FakeEngine:
     def voices(self) -> list[str]:
         return ["cosette", "alba"]
 
+    def voice_language(self, voice: str) -> str:
+        return "en"
+
     def stream(self, text: str, voice: str) -> Iterator[NDArray[np.float32]]:
         self.calls.append((text, voice))
         try:
@@ -145,6 +148,55 @@ async def test_requested_voice_and_english_locale() -> None:
     assert events[-1].type == "audio-stop"
     assert engine.calls == [("Hello", "cosette")]
     assert engine.closed == 1
+
+
+class BilingualEngine(FakeEngine):
+    def voices(self) -> list[str]:
+        return [*super().voices(), "liat", "omer"]
+
+    def voice_language(self, voice: str) -> str:
+        return "he" if voice in ("liat", "omer") else "en"
+
+
+async def test_hebrew_voice_metadata() -> None:
+    info = make_info(BilingualEngine(), Settings())
+    assert {voice.name: voice.languages for voice in info.tts[0].voices} == {
+        "alba": ["en"], "cosette": ["en"], "liat": ["he"], "omer": ["he"]
+    }
+
+
+@pytest.mark.parametrize(
+    "voice,expected",
+    [
+        (SynthesizeVoice(name="omer", language="he-IL"), "omer"),
+        (SynthesizeVoice(name="liat"), "liat"),
+        (SynthesizeVoice(language="he_IL"), "liat"),
+    ],
+)
+async def test_hebrew_voice_selection(voice: SynthesizeVoice, expected: str) -> None:
+    engine = BilingualEngine()
+    async with running_server(engine) as port:
+        events = await synthesize(
+            port, Synthesize("\u05e9\u05dc\u05d5\u05dd", voice=voice).event()
+        )
+    assert events[-1].type == "audio-stop"
+    assert engine.calls == [("\u05e9\u05dc\u05d5\u05dd", expected)]
+
+
+@pytest.mark.parametrize(
+    "voice",
+    [
+        SynthesizeVoice(name="alba", language="he"),
+        SynthesizeVoice(name="omer", language="en"),
+        SynthesizeVoice(language="fr"),
+    ],
+)
+async def test_voice_language_mismatch_is_rejected(voice: SynthesizeVoice) -> None:
+    engine = BilingualEngine()
+    async with running_server(engine) as port:
+        events = await synthesize(port, Synthesize("Hello", voice=voice).event())
+    assert [event.type for event in events] == ["error"]
+    assert not engine.calls
 
 
 @pytest.mark.parametrize(

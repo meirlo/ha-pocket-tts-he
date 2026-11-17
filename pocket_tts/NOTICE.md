@@ -13,7 +13,8 @@ own licenses; the MIT license does not relicense them.
 - **Pocket TTS ONNX model**, exported by **thewh1teagle** from Kyutai's Pocket
   TTS, is licensed under **CC BY 4.0** according to its
   [model card](https://huggingface.co/thewh1teagle/pocket-tts-onnx).
-  The unmodified `pocket-tts-english.onnx` is downloaded from revision
+  The unmodified `pocket-tts-english-ipa.onnx` (including the Hebrew adapter
+  and embedded voices) is downloaded from revision
   `110f5251188e9407b4f724acdd8b0dfd0b20692a`. The model is not included in this
   repository or container image. Keep this attribution and the license link
   with redistributed models or adaptations and indicate any modifications.
@@ -24,7 +25,13 @@ own licenses; the MIT license does not relicense them.
   Source: https://github.com/rhasspy/wyoming.
 - **renikud-onnx**, by **thewh1teagle**, is an upstream package dependency
   licensed under CC BY 4.0. Source: https://github.com/thewh1teagle/renikud.
-  No Hebrew G2P model is downloaded or used by this English-only server.
+- **ReNikud Hebrew G2P model**, by **Maxim Melichov, Yakov Kolani and Morris Alper**,
+  is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  Source/model card: https://huggingface.co/renikud/renikud.
+  The unmodified `model.onnx` is downloaded from revision
+  `a59c632c8cbac0f8c63f298cad77ef3a3a2547c9` for Hebrew synthesis and is not
+  bundled in this repository or image. Preserve attribution and indicate
+  modifications when redistributing it.
 
 Other installed dependencies include ONNX Runtime (MIT), NumPy and
 SentencePiece (BSD/Apache-2.0 respectively), Hugging Face Hub (Apache-2.0),

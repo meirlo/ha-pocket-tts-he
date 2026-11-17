@@ -4,7 +4,7 @@ ARG BUILD_ARCH
 LABEL io.hass.name="Pocket TTS" \
       io.hass.description="Pocket TTS ONNX over Wyoming" \
       io.hass.type="addon" \
-      io.hass.version="0.1.0" \
+      io.hass.version="0.3.0" \
       io.hass.arch="${BUILD_ARCH}"
 
 ENV PYTHONUNBUFFERED=1 \

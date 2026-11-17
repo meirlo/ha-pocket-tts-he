@@ -30,7 +30,7 @@ def make_info(engine: Engine, settings: Settings) -> Info:
         tts=[
             TtsProgram(
                 name="pocket-tts",
-                description="English Pocket TTS ONNX (CC BY 4.0)",
+                description="Pocket TTS ONNX (CC BY 4.0)",
                 attribution=ATTRIBUTION,
                 installed=True,
                 version=__version__,
@@ -38,11 +38,11 @@ def make_info(engine: Engine, settings: Settings) -> Info:
                 voices=[
                     TtsVoice(
                         name=name,
-                        description=f"Pocket TTS English voice: {name}",
+                        description=f"Pocket TTS voice: {name}",
                         attribution=ATTRIBUTION,
                         installed=True,
                         version=None,
-                        languages=["en"],
+                        languages=[engine.voice_language(name)],
                     )
                     for name in names
                 ],
@@ -124,20 +124,32 @@ class PocketEventHandler(AsyncEventHandler):
         if request.text_format not in (None, "text"):
             raise ValueError("Only plain text is supported (not SSML)")
         voice = self.settings.voice
+        language = None
         if request.voice is not None:
             if request.voice.speaker is not None:
                 raise ValueError("Speaker selection is not supported; select a voice by name")
-            language = request.voice.language
-            if language is not None:
-                if (
-                    not isinstance(language, str)
-                    or language.lower().replace("_", "-").split("-")[0] != "en"
-                ):
-                    raise ValueError("Only English is supported")
+            requested_language = request.voice.language
+            if requested_language is not None:
+                if not isinstance(requested_language, str):
+                    raise ValueError("Language must be an English or Hebrew language tag")
+                language = requested_language.lower().replace("_", "-").split("-")[0]
+                if language not in ("en", "he"):
+                    raise ValueError("Only English and Hebrew are supported")
             if request.voice.name is not None:
                 voice = request.voice.name
+            elif language is not None and self.engine.voice_language(voice) != language:
+                matches = [
+                    name
+                    for name in self.engine.voices()
+                    if self.engine.voice_language(name) == language
+                ]
+                if not matches:
+                    raise ValueError(f"No voices available for language {language!r}")
+                voice = matches[0]
         if voice not in self.engine.voices():
             raise ValueError(f"Unknown voice {voice!r}; available: {self.engine.voices()}")
+        if language is not None and self.engine.voice_language(voice) != language:
+            raise ValueError(f"Voice {voice!r} does not support language {language!r}")
         return voice
 
     async def synthesize(self, text: str, voice: str) -> None:

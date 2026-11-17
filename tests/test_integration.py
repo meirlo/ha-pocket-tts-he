@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from test_service import running_server, synthesize
 from wyoming.audio import AudioChunk
-from wyoming.tts import Synthesize
+from wyoming.tts import Synthesize, SynthesizeVoice
 from wyoming_pocket_tts.backend import load_engine
 from wyoming_pocket_tts.settings import Settings
 
@@ -14,13 +14,25 @@ from wyoming_pocket_tts.settings import Settings
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("POCKET_TTS_SMOKE") != "1", reason="Opt-in model download")
 @pytest.mark.parametrize("offline", [False, True])
-async def test_real_model_over_wyoming(offline: bool) -> None:
+@pytest.mark.parametrize(
+    "voice,text",
+    [
+        ("alba", "Hello from Home Assistant."),
+        ("omer", "\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd."),
+        ("liat", "\u05e9\u05dc\u05d5\u05dd Google. \u05d4\u05e9\u05e2\u05d4 12:30."),
+    ],
+)
+async def test_real_model_over_wyoming(offline: bool, voice: str, text: str) -> None:
     engine = await asyncio.to_thread(load_engine, Settings(offline=offline), Path(".cache"))
     assert "alba" in engine.voices()
+    assert engine.voice_language("omer") == "he"
+    assert engine.voice_language("liat") == "he"
     assert engine.sample_rate == 24000
     async with running_server(engine) as port:
         events = await synthesize(
-            port, Synthesize("Hello from Home Assistant.").event(), timeout=120
+            port,
+            Synthesize(text, voice=SynthesizeVoice(name=voice)).event(),
+            timeout=120,
         )
     assert events[0].type == "audio-start"
     assert events[-1].type == "audio-stop"

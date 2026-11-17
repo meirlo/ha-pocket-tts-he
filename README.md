@@ -1,68 +1,112 @@
 # Pocket TTS for Home Assistant
 
-A standalone Home Assistant app (formerly "add-on") that serves
-[Pocket TTS ONNX](https://github.com/thewh1teagle/pocket-tts-onnx) through the
-[Wyoming protocol](https://www.home-assistant.io/integrations/wyoming/).
-Synthesis runs locally on CPU, without PyTorch or a cloud speech API.
+Give your Home Assistant voice assistant **local English and Hebrew speech**.
+Pocket TTS is a Home Assistant app (formerly "add-on") powered by
+[Pocket TTS ONNX](https://github.com/thewh1teagle/pocket-tts-onnx), connected through
+the [Wyoming integration](https://www.home-assistant.io/integrations/wyoming/).
+Speech runs on your CPU: no cloud speech service, API key, or GPU is required.
 
-The initial version supports **English**, the model's embedded voices, and
-streaming **24 kHz mono, signed 16-bit little-endian PCM** audio. It accepts
-Wyoming `describe` and `synthesize` requests. SSML, streaming text-input
-events, voice cloning and Hebrew adapters are not exposed.
+- **Eight voices:** six English voices and Hebrew voices **omer** and **liat**.
+- **Automatic discovery:** confirm the integration after starting the app, without
+  entering a host or port.
+- **Private, offline speech:** text and audio stay local; models download once.
+- **Hebrew and mixed text:** supports Hebrew numbers, dates, times, and English
+  words within Hebrew speech. Audio streams as it is generated.
 
-## Install
+## Before you install
 
-Requires **Home Assistant OS** or another installation with Supervisor/app
-support. Home Assistant Container/Core users can run the standalone container
-and connect the same Wyoming integration.
+Use **Home Assistant OS** or an installation with Supervisor and app support.
+Supported hardware is **64-bit amd64 or aarch64**; 32-bit systems are not supported.
+Allow at least **1 GB of free storage** and several GB of available RAM.
+Speech speed depends on your CPU; amd64 installation has been tested on Home Assistant.
+Home Assistant Container/Core users can use the [standalone container](#development--standalone).
 
-This project has not been published to GitHub yet. For local installation:
+## Install the app
 
-1. Copy the entire `pocket_tts` folder from this repository into the Home
-   Assistant local apps directory, traditionally `/addons/pocket_tts`
-   (for example, through the Samba or SSH app).
-2. Open **Settings > Apps** (called **Add-ons** in older releases), open the
-   app store, and reload/check for updates.
-3. Find **Pocket TTS** under **Local apps**, install it, and start it.
-4. Wait for `Model ready` in its log before connecting Home Assistant.
+**This repository is private. Use local installation:** Home Assistant's app store
+cannot clone this private repository through the shortcut buttons.
 
-The image builds on the device, so installation requires internet access to
-Docker Hub, GitHub and PyPI. The first start downloads the pinned English
-model (~228 MB) from Hugging Face into persistent `/data/huggingface`; later
-starts reuse it. Allow several minutes for the first build/download.
-Plan for at least 1 GB of free storage and a 64-bit system with several GB
-of RAM available; actual memory and synthesis speed depend on hardware.
+1. Download or clone this repository using your GitHub account. Copy the entire
+   `pocket_tts` folder into `/addons/pocket_tts` on your Home Assistant host, for
+   example through the Samba or SSH app.
+2. Open **Settings > Apps > App store** (called **Add-ons** in older releases),
+   reload/check for updates, and install **Pocket TTS** under **Local apps**.
+3. Start the app and wait for **`Model ready`** in its log.
+4. Open **Settings > Devices & services** and confirm the discovered **Pocket TTS**
+   Wyoming integration.
+5. Open **Settings > Voice assistants**, edit or create an assistant, and choose
+   **English** or **Hebrew**, **Pocket TTS** as the text-to-speech provider, and a voice.
 
-Once this repository is hosted, add its actual Git URL using the app store's
-**Repositories** dialog. `repository.yaml` and the add-on folder are already
-provided; no fictional repository URL or prebuilt image is configured.
+**First installation takes several minutes.** The image builds on your device
+using Docker Hub, GitHub, and PyPI. First startup downloads approximately **252 MB**
+of models from Hugging Face: the speech model (~231 MB) and Hebrew pronunciation
+model (~21 MB). Later starts reuse the persistent cache.
 
-## Connect Home Assistant
+### Repository shortcuts
 
-1. Open **Settings > Devices & services > Add integration > Wyoming Protocol**.
-2. Set **Host** to your Home Assistant machine's LAN IP, and **Port** to `10200`
-   (or the host port selected in the app's Network settings).
-3. Open **Settings > Voice assistants**, edit/create an assistant, choose
-   English and select the new **Pocket TTS** text-to-speech provider and voice.
+These official shortcuts are for repository-based installation **if the repository
+is made public in the future**. They do not work for the current private repository
+or a locally installed copy. Add the repository first, then open Pocket TTS and
+choose **Install**; both actions require your confirmation.
 
-Discovery is manual, not automatic; the service requests no Supervisor API
-permissions. Piper also usually uses `10200`, so change one app's **host
-port** if running both; two apps cannot bind the same host port. The internal
-Pocket TTS port remains `10200`.
+[![Add app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
+[![Open Pocket TTS in Home Assistant](https://my.home-assistant.io/badges/supervisor_addon.svg)](https://my.home-assistant.io/redirect/supervisor_addon/?addon=50e8e570_pocket_tts&repository_url=https%3A%2F%2Fgithub.com%2Fmeirlo%2Fha-pocket-tts-he.git)
 
-You can also call Home Assistant's `tts.speak` action with the TTS entity
-created by the integration and a media player. Home Assistant fetches the
-audio over Wyoming; the add-on does not access your sound hardware.
+For manual repository-based installation, the app store's **Repositories** dialog
+uses this exact URL:
 
-**Wyoming TCP has no authentication or encryption.** Keep the port on your
-trusted LAN; never forward it to the internet.
+```text
+https://github.com/meirlo/ha-pocket-tts-he.git
+```
 
-## Configuration
+The app shortcut matches that repository URL. If you previously added the URL
+without `.git`, open Pocket TTS from the app store instead.
 
-See [the add-on documentation](pocket_tts/DOCS.md) for all options, voices,
-offline use, backups and troubleshooting.
+## Choose a voice
+
+| Assistant language | Available voices |
+| --- | --- |
+| English | `alba` (default), `anna`, `cosette`, `javert`, `marius`, `michael` |
+| Hebrew | `omer`, `liat` |
+
+Select a voice in your assistant's settings. To change the app's fallback voice,
+set **`voice`** in its **Configuration** tab and restart. Home Assistant's selected
+voice takes precedence. An English-only custom model will not offer Hebrew voices.
+
+You can also use Home Assistant's **`tts.speak`** action with the integration's TTS
+entity and a media player for announcements. The app does not need sound hardware.
+
+## Useful settings and troubleshooting
+
+Keep the defaults for your first start. After the models have downloaded, set
+**`offline: true`** to prevent further model downloads. Cached models are excluded
+from backups, so a restore needs another download or separately supplied model files.
+See [app documentation](pocket_tts/DOCS.md) for configuration, offline use, backups,
+local models, and troubleshooting.
+
+**Already using Piper?** Both apps default to host port `10200`. Change one app's
+host port in its **Network** settings before starting both. Automatic discovery
+uses Pocket TTS's internal port and still works with a different host port.
+
+**No discovery card?** Wait for the model to load and check the app log. You can
+always add **Wyoming Protocol** manually under **Devices & services > Add integration**,
+using your Home Assistant server's LAN IP and the app's mapped port. Standalone
+servers require this manual setup.
+
+**Already connected manually?** Ignore the new discovery card, or remove the manual
+entry before confirming discovery, to avoid duplicate TTS entities.
+
+**Keep it on your trusted network.** Wyoming TCP has no authentication or encryption;
+never forward its port to the internet.
+
+**Upgrading from 0.1.0:** the default model now includes the Hebrew adapter.
+An old English-only cache is not enough for offline startup; start once with
+`offline: false` to cache both new files, or supply local models.
 
 ## Development / standalone
+
+The service streams 24 kHz mono PCM16 audio. SSML, streaming text input, and voice
+cloning are not exposed.
 
 Python **3.13** is required by the pinned upstream package. All production
 dependencies, including the complete transitive set, are pinned in
@@ -88,8 +132,8 @@ Run the server from `pocket_tts` with a persistent `--data-dir`, and bind
 accepts the same JSON keys as the add-on options; omitting it uses defaults.
 Startup/configuration/model failures are logged and exit nonzero.
 
-For the opt-in real-model Wyoming smoke test (downloads ~228 MB), from the
-repository root:
+For the opt-in real-model Wyoming smoke test (downloads ~252 MB for both
+models and exercises English, Hebrew and mixed text), from the repository root:
 
 ```powershell
 $env:POCKET_TTS_SMOKE = "1"
